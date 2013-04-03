@@ -47,9 +47,9 @@ public class RootAdb extends Activity {
 
 		output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 		if (output.equals("0\n")) {
-			output("\nadb is already runing as root.\n");
+			output("\nadbd is running as root.\nClick the button to restart it with shell privileges.\n");
 		} else {
-			output("\nClick 'ENABLE' to run adb daemon with root privileges.\n");
+			output("\nadbd is running as shell.\nClick the button to restart it with root privileges.\n");
 		}
 
 		buttonPm.setClickable(true);
@@ -75,17 +75,27 @@ public class RootAdb extends Activity {
 						e.printStackTrace();
 					}
 
-					output("restarting adb daemon with root privileges\n");
-					utils.exec("su -c 'stop adbd'");
-					utils.exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
+					output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
+					if (output.equals("0\n")) {
+						output("restarting adb daemon with shell privileges\n");
+						utils.exec("su -c 'stop adbd'");
+						utils.exec("su -c '" + filesPath + "/setpropex ro.secure 1'");
+						utils.exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
+					} else {
+						output("restarting adb daemon with root privileges\n");
+						utils.exec("su -c 'stop adbd'");
+						utils.exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
+						utils.exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
+					}
+
 					utils.exec("su -c 'start adbd'");
 					utils.exec("rm " + filesPath + "/setpropex");
 
 					output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 					if (output.equals("0\n")) {
-						output("\nadb daemon is now runing as root.\n");
+						output("\nadb daemon is now running as root.\n");
 					} else {
-						output("\nsomething failed... :(\ndo you have root?");
+						output("\nadb daemon is now running as shell.\n");
 					}
 
 					buttonPm.setClickable(true);
