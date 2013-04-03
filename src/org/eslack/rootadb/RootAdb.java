@@ -20,7 +20,7 @@ public class RootAdb extends Activity {
 	
 	private TextView outputView;
 	private Handler handler = new Handler();
-	private Button buttonPm;
+	private ToggleButton toggle;
 	
         private Context context;
         private Utils mUtils;
@@ -36,13 +36,13 @@ public class RootAdb extends Activity {
 
 		outputView = (TextView)findViewById(R.id.outputView);
 
-		buttonPm = (Button)findViewById(R.id.buttonPm);
-		buttonPm.setOnClickListener(onButtonPmClick);
-		buttonPm.setClickable(false);
+		toggle = (ToggleButton) findViewById(R.id.togglebutton);
 
-		checkAdb();
+		toggle.setClickable(false);
 
-		buttonPm.setClickable(true);
+		toggle.setChecked(isAdbRoot());
+
+		toggle.setClickable(true);
 
 	}
 
@@ -62,22 +62,28 @@ public class RootAdb extends Activity {
                 return false;
         }
 
-	private OnClickListener onButtonPmClick = new OnClickListener() {
-		public void onClick(View v) {
-			// disable button click if it has been clicked once
-			buttonPm.setClickable(false);
-			outputView.setText("");
+	public void onToggleClicked(View view) {
+		toggle.setClickable(false);
+		boolean on = ((ToggleButton) view).isChecked();
 
-			Thread thread = new Thread(new Runnable() {
-				public void run() {
-					mUtils.doTheMeat();
-					checkAdb();
-					buttonPm.setClickable(true);
-				}
-			});
-			thread.start();
+		if (on) {
+			output("\nrestarting adb daemon with root privileges\n");
+		} else {
+			output("\nrestarting adb daemon with shell privileges\n");
 		}
-	};
+
+		outputView.setText("");
+
+		Thread thread = new Thread(new Runnable() {
+			public void run() {
+				mUtils.doTheMeat();
+				isAdbRoot();
+				toggle.setClickable(true);
+			}
+		});
+		thread.start();
+
+		}
 
 	private void output(final String str) {
 		Runnable proc = new Runnable() {
@@ -88,13 +94,15 @@ public class RootAdb extends Activity {
 		handler.post(proc);
 	}
 
-	private void checkAdb() {
+	private boolean isAdbRoot() {
 		String output;
 		output = mUtils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 		if (output.equals("0\n")) {
 			output("\nadbd is running as root.\nClick the button to restart it with shell privileges.\n");
+			return true;
 		} else {
 			output("\nadbd is running as shell.\nClick the button to restart it with root privileges.\n");
+			return false;
 		}
 	}
 

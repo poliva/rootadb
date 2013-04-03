@@ -14,13 +14,13 @@ android:padding="15dp"
 	android:padding="2dp"
 	android:orientation="horizontal">
 
-		<Button
-		android:id="@+id/buttonPm" 
+		<ToggleButton 
+		android:id="@+id/togglebutton"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="Restart ADB"
-		android:textColor="#ff000000"
-		/>
+		android:textOn="insecure adb"
+		android:textOff="secure adb"
+		android:onClick="onToggleClicked"/>
 
 	</LinearLayout>
 

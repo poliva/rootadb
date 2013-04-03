@@ -33,21 +33,6 @@ public class Utils {
 		mContext = context;
 	}
 
-	// store a Key-Value string in preferences
-	public void StorePref(String Key, String Value) {
-		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-		SharedPreferences.Editor editor = settings.edit();
-		editor.putString(Key,Value);
-		editor.commit();
-	}
-
-	// get the String value from key in preferences, returns unknown if not set
-	public String GetPref(String Key) {
-		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-		String version = settings.getString(Key, "unknown");
-		return version;
-	}
-
 	public String exec(String command) {
 	// execute a shell command, returning output in a string
 		try {
@@ -79,15 +64,13 @@ public class Utils {
 		}
 	}
 
-
-
-
-
-
 	public void doTheMeat() {
 
 		String filesPath = mContext.getFilesDir().getAbsolutePath();
 		String output;
+
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+		boolean debuggable = prefs.getBoolean("debuggable", true);
 
 		try {
 			copyFromAssets(mContext, "setpropex", "setpropex");
@@ -98,30 +81,18 @@ public class Utils {
 
 		output = exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 		if (output.equals("0\n")) {
-			//output("restarting adb daemon with shell privileges\n");
 			exec("su -c 'stop adbd'");
 			exec("su -c '" + filesPath + "/setpropex ro.secure 1'");
-			exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
+			if (debuggable) exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
 		} else {
-			//output("restarting adb daemon with root privileges\n");
 			exec("su -c 'stop adbd'");
 			exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
-			exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
+			if (debuggable) exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
 		}
 
 		exec("su -c 'start adbd'");
 		exec("rm " + filesPath + "/setpropex");
-
-		output = exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
-		if (output.equals("0\n")) {
-			//output("\nadb daemon is now running as root.\n");
-		} else {
-			//output("\nadb daemon is now running as shell.\n");
-		}
-
 	}
-
-
 
 	public static final void copyFromAssets(Context context, String source, String destination) throws IOException {
 
