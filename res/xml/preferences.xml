@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="Boot Settings" android:key="first_category">
+        <CheckBoxPreference 
+            android:key="start_onboot"
+            android:summary="Automatically toggle adb state on boot"
+            android:title="Start on boot" 
+            android:defaultValue="false"
+        />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Debug Settings" android:key="second_category">
+        <CheckBoxPreference
+            android:key="debuggable"
+            android:summary="set ro.debuggable to true"
+            android:title="Make device debuggable"
+            android:defaultValue="true"
+        />
+    </PreferenceCategory>
+</PreferenceScreen>

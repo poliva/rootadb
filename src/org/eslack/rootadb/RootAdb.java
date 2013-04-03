@@ -11,14 +11,10 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.*;
 import android.content.Context;
+import android.content.Intent;
+import android.view.Menu;
+import android.view.MenuItem;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
 
 public class RootAdb extends Activity {
 	
@@ -26,9 +22,8 @@ public class RootAdb extends Activity {
 	private Handler handler = new Handler();
 	private Button buttonPm;
 	
-	private Context context;
-
-	Utils utils = new Utils();
+        private Context context;
+        private Utils mUtils;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -37,24 +32,35 @@ public class RootAdb extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
+		mUtils = new Utils(getApplicationContext());
+
 		outputView = (TextView)findViewById(R.id.outputView);
 
 		buttonPm = (Button)findViewById(R.id.buttonPm);
 		buttonPm.setOnClickListener(onButtonPmClick);
 		buttonPm.setClickable(false);
 
-		String output;
-
-		output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
-		if (output.equals("0\n")) {
-			output("\nadbd is running as root.\nClick the button to restart it with shell privileges.\n");
-		} else {
-			output("\nadbd is running as shell.\nClick the button to restart it with root privileges.\n");
-		}
+		checkAdb();
 
 		buttonPm.setClickable(true);
 
 	}
+
+        @Override
+        public boolean onCreateOptionsMenu(Menu menu) {
+                menu.add(Menu.NONE, 0, 0, "Settings");
+                return super.onCreateOptionsMenu(menu);
+        }
+
+        @Override
+        public boolean onOptionsItemSelected(MenuItem item) {
+                switch (item.getItemId()) {
+                        case 0:
+                                startActivity(new Intent(this, SettingsActivity.class));
+                                return true;
+                }
+                return false;
+        }
 
 	private OnClickListener onButtonPmClick = new OnClickListener() {
 		public void onClick(View v) {
@@ -64,40 +70,8 @@ public class RootAdb extends Activity {
 
 			Thread thread = new Thread(new Runnable() {
 				public void run() {
-
-					String filesPath = getFilesDir().getAbsolutePath();
-					String output;
-
-					try {
-						copyFromAssets("setpropex", "setpropex");
-						utils.exec("chmod 700 " + filesPath + "/setpropex");
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-
-					output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
-					if (output.equals("0\n")) {
-						output("restarting adb daemon with shell privileges\n");
-						utils.exec("su -c 'stop adbd'");
-						utils.exec("su -c '" + filesPath + "/setpropex ro.secure 1'");
-						utils.exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
-					} else {
-						output("restarting adb daemon with root privileges\n");
-						utils.exec("su -c 'stop adbd'");
-						utils.exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
-						utils.exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
-					}
-
-					utils.exec("su -c 'start adbd'");
-					utils.exec("rm " + filesPath + "/setpropex");
-
-					output = utils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
-					if (output.equals("0\n")) {
-						output("\nadb daemon is now running as root.\n");
-					} else {
-						output("\nadb daemon is now running as shell.\n");
-					}
-
+					mUtils.doTheMeat();
+					checkAdb();
 					buttonPm.setClickable(true);
 				}
 			});
@@ -114,19 +88,14 @@ public class RootAdb extends Activity {
 		handler.post(proc);
 	}
 
-	private void copyFromAssets(String source, String destination) throws IOException {
-
-		// read file from the apk
-		InputStream is = getAssets().open(source);
-		int size = is.available();
-		byte[] buffer = new byte[size];
-		is.read(buffer);
-		is.close();
-
-		// write files in app private storage
-		FileOutputStream output = openFileOutput(destination, Context.MODE_PRIVATE);
-		output.write(buffer);
-		output.close();
-
+	private void checkAdb() {
+		String output;
+		output = mUtils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
+		if (output.equals("0\n")) {
+			output("\nadbd is running as root.\nClick the button to restart it with shell privileges.\n");
+		} else {
+			output("\nadbd is running as shell.\nClick the button to restart it with root privileges.\n");
+		}
 	}
+
 }

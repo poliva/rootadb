@@ -10,7 +10,43 @@ import java.io.InputStreamReader;
 import java.io.DataOutputStream;
 
 
+import android.content.Context;
+
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.preference.PreferenceManager;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+
+
 public class Utils {
+
+	private Context mContext;
+
+	public Utils(Context context) {
+		mContext = context;
+	}
+
+	// store a Key-Value string in preferences
+	public void StorePref(String Key, String Value) {
+		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
+		SharedPreferences.Editor editor = settings.edit();
+		editor.putString(Key,Value);
+		editor.commit();
+	}
+
+	// get the String value from key in preferences, returns unknown if not set
+	public String GetPref(String Key) {
+		SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
+		String version = settings.getString(Key, "unknown");
+		return version;
+	}
 
 	public String exec(String command) {
 	// execute a shell command, returning output in a string
@@ -41,6 +77,66 @@ public class Utils {
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+
+
+
+
+
+	public void doTheMeat() {
+
+		String filesPath = mContext.getFilesDir().getAbsolutePath();
+		String output;
+
+		try {
+			copyFromAssets(mContext, "setpropex", "setpropex");
+			exec("chmod 700 " + filesPath + "/setpropex");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		output = exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
+		if (output.equals("0\n")) {
+			//output("restarting adb daemon with shell privileges\n");
+			exec("su -c 'stop adbd'");
+			exec("su -c '" + filesPath + "/setpropex ro.secure 1'");
+			exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
+		} else {
+			//output("restarting adb daemon with root privileges\n");
+			exec("su -c 'stop adbd'");
+			exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
+			exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
+		}
+
+		exec("su -c 'start adbd'");
+		exec("rm " + filesPath + "/setpropex");
+
+		output = exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
+		if (output.equals("0\n")) {
+			//output("\nadb daemon is now running as root.\n");
+		} else {
+			//output("\nadb daemon is now running as shell.\n");
+		}
+
+	}
+
+
+
+	public static final void copyFromAssets(Context context, String source, String destination) throws IOException {
+
+		// read file from the apk
+		InputStream is = context.getAssets().open(source);
+		int size = is.available();
+		byte[] buffer = new byte[size];
+		is.read(buffer);
+		is.close();
+
+		// write files in app private storage
+		FileOutputStream output = context.openFileOutput(destination, Context.MODE_PRIVATE);
+		output.write(buffer);
+		output.close();
+
 	}
 
 }
