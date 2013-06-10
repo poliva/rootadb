@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <string name="app_name">RootAdb</string>
+    <string name="button_on">secure adb</string>
+    <string name="button_off">insecure adb</string>
+
 </resources>
