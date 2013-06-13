@@ -1,5 +1,5 @@
-BUILD=debug
-#BUILD=release
+#BUILD=debug
+BUILD=release
 
 build: clean
 	ndk-build
@@ -11,7 +11,7 @@ clean:
 	rm -rf bin gen libs obj assets
 
 uninstall:
-	adb shell "su -c 'LD_LIBRARY_PATH=/system/lib pm uninstall org.eslack.rootadb'"
+	adb shell "LD_LIBRARY_PATH=/system/lib pm uninstall org.eslack.rootadb"
 
 install: uninstall build
 	adb install bin/RootAdb-${BUILD}.apk
