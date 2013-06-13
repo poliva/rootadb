@@ -36,7 +36,7 @@ public class RootAdb extends Activity {
 	@Override
 	protected void onStart() {
 		super.onStart();
-		updateUi(isAdbRoot());
+		updateUi(isAdbRoot(false));
 	}
 
 	private void initViews() {
@@ -46,7 +46,7 @@ public class RootAdb extends Activity {
 
 		check.setClickable(false);
 
-		updateUi(isAdbRoot());
+		updateUi(isAdbRoot(true));
 
 		check.setClickable(true);
 	}
@@ -76,7 +76,7 @@ public class RootAdb extends Activity {
 		check.setClickable(false);
 
 		//boolean on = ((CheckBox) view).isChecked();
-		boolean on = isAdbRoot();
+		boolean on = isAdbRoot(false);
 
 		if (on) {
 			output("\nrestarting adb daemon with shell privileges\n");
@@ -91,7 +91,7 @@ public class RootAdb extends Activity {
 				mUtils.doTheMeat();
 				runOnUiThread(new Runnable() {
      	     	     	     	     public void run() {
-					updateUi(isAdbRoot());
+					updateUi(isAdbRoot(true));
     	    	    	    	    }
 				});
 				check.setClickable(true);
@@ -110,16 +110,25 @@ public class RootAdb extends Activity {
 		handler.post(proc);
 	}
 
-	private boolean isAdbRoot() {
+	private boolean isAdbRoot(boolean verbose) {
 		String output;
+		String user;
+
 		output = mUtils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
-		if (output.equals("0\n")) {
-			output("\nadbd is running as root.\n");
+		user = mUtils.exec("LD_LIBRARY_PATH=/system/lib ps adbd");
+
+		if (output.equals("0\n") && user.toLowerCase().contains("root")) {
+			if (verbose) output("\nadbd is running as root.\n");
 			return true;
-		} else {
-			output("\nadbd is running as shell.\n");
-			return false;
+		} 
+
+		if (verbose) output("\nadbd is running as shell.\n");
+
+		if (verbose && output.equals("0\n") && !user.toLowerCase().contains("root")) {
+			output("\nDevice not supported.\n");
 		}
+
+		return false;
 	}
 
 }
