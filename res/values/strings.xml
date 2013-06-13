@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">RootAdb</string>
-    <string name="button_on">secure adb</string>
-    <string name="button_off">insecure adb</string>
+    <string name="button_on">insecure adb</string>
+    <string name="button_off">secure adb</string>
 
 </resources>

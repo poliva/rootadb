@@ -75,12 +75,13 @@ public class RootAdb extends Activity {
 	public void onToggleClicked(View view) {
 		check.setClickable(false);
 
-		boolean on = ((CheckBox) view).isChecked();
+		//boolean on = ((CheckBox) view).isChecked();
+		boolean on = isAdbRoot();
 
 		if (on) {
-			output("\nrestarting adb daemon with root privileges\n");
-		} else {
 			output("\nrestarting adb daemon with shell privileges\n");
+		} else {
+			output("\nrestarting adb daemon with root privileges\n");
 		}
 
 		outputView.setText("");
@@ -88,12 +89,15 @@ public class RootAdb extends Activity {
 		Thread thread = new Thread(new Runnable() {
 			public void run() {
 				mUtils.doTheMeat();
-				isAdbRoot();
+				runOnUiThread(new Runnable() {
+     	     	     	     	     public void run() {
+					updateUi(isAdbRoot());
+    	    	    	    	    }
+				});
 				check.setClickable(true);
 			}
 		});
 		thread.start();
-
 	}
 
 	private void output(final String str) {
@@ -110,10 +114,10 @@ public class RootAdb extends Activity {
 		String output;
 		output = mUtils.exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 		if (output.equals("0\n")) {
-			output("\nadbd is running as root.\nClick the button to restart it with shell privileges.\n");
+			output("\nadbd is running as root.\n");
 			return true;
 		} else {
-			output("\nadbd is running as shell.\nClick the button to restart it with root privileges.\n");
+			output("\nadbd is running as shell.\n");
 			return false;
 		}
 	}
