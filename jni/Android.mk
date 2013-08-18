@@ -5,5 +5,5 @@ LOCAL_SRC_FILES:= \
 	setpropex.c system_properties.c
 LOCAL_MODULE := setpropex
 LOCAL_CFLAGS += -std=c99 -I jni/inc
-LOCAL_LDLIBS    := -llog ../libcutils.so ../libc.so
+LOCAL_LDLIBS    := -llog libcutils.so libc.so
 include $(BUILD_EXECUTABLE)
