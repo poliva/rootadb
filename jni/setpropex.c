@@ -159,7 +159,10 @@ static int setpropex(int init_pid, int argc, char *argv[])
     fprintf(stderr,"usage: setpropex <key> <value>\n");
     return 1;
   }
-  mapinfo *mi = search_maps(init_pid, "rw-s", "/dev/__properties__ (deleted)");
+  mapinfo *mi = search_maps(init_pid, "rw-s", "/dev/__properties__");
+  if(!mi) {
+    mi = search_maps(init_pid, "rw-s", "/dev/__properties__ (deleted)");
+  }
   if(!mi) {
     mi = search_maps(init_pid, "rwxs", "/dev/__properties__ (deleted)");
   }
