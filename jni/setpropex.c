@@ -45,16 +45,17 @@ skip:
     if(fgets(line, 1024, fp) == 0) return -1;
 
     len = strlen(line);
-    if(len < 1) return -1;
+    if(len < 1) { fprintf(stderr, "read_mapinfo: short line!\n"); return -1; }
     line[--len] = 0;
 
-    if(mi == 0) return -1;
+    if(mi == 0) { fprintf(stderr, "read_mapinfo: NULL mapinfo!\n"); return -1; }
 
     mi->start = strtoul(line, 0, 16);
     mi->end = strtoul(line + 9, 0, 16);
     strncpy(mi->perm, line + 18, 4);
 
     if(len < 50) {
+        //fprintf(stderr, "read_mapinfo: line too short! (%d bytes) skipping\n", len);
         //mi->name[0] = '\0';
 	goto skip;
     } else {
@@ -72,7 +73,7 @@ static mapinfo *search_maps(int pid, const char* perm, const char* name)
     
     sprintf(tmp, "/proc/%d/maps", pid);
     fp = fopen(tmp, "r");
-    if(fp == 0) return 0;
+    if(fp == 0) { fprintf(stderr, "search_maps: unable to open maps file!\n"); return 0; }
     
     mi = calloc(1, sizeof(mapinfo) + 16);
 
@@ -85,6 +86,7 @@ static mapinfo *search_maps(int pid, const char* perm, const char* name)
         }
     }
 
+    fprintf(stderr, "search_maps: map \"%s\" not found!\n", name);
     fclose(fp);
     free(mi);
     return 0;
@@ -159,7 +161,10 @@ static int setpropex(int init_pid, int argc, char *argv[])
     fprintf(stderr,"usage: setpropex <key> <value>\n");
     return 1;
   }
-  mapinfo *mi = search_maps(init_pid, "rw-s", "/dev/__properties__ (deleted)");
+  mapinfo *mi = search_maps(init_pid, "rw-s", "/dev/__properties__");
+  if(!mi) {
+    mi = search_maps(init_pid, "rw-s", "/dev/__properties__ (deleted)");
+  }
   if(!mi) {
     mi = search_maps(init_pid, "rwxs", "/dev/__properties__ (deleted)");
   }
