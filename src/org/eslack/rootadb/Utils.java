@@ -25,11 +25,13 @@ public class Utils {
 		mContext = context;
 	}
 
-	public String exec(String command) {
+	public String runcommand(String command, boolean root) {
 		// execute a shell command, returning output in a string
 		try {
 			Runtime rt = Runtime.getRuntime();
-			Process process = rt.exec("sh");
+			Process process;
+			if (root) process = rt.exec("su");
+			else process = rt.exec("sh");
 			DataOutputStream os = new DataOutputStream(
 					process.getOutputStream());
 			os.writeBytes(command + "\n");
@@ -57,6 +59,14 @@ public class Utils {
 		}
 	}
 
+	public String exec(String command) {
+		return runcommand(command, false);
+	}
+
+	public String execroot(String command) {
+		return runcommand(command, true);
+	}
+
 	public void doTheMeat() {
 
 		String filesPath = mContext.getFilesDir().getAbsolutePath();
@@ -68,26 +78,40 @@ public class Utils {
 
 		try {
 			copyFromAssets(mContext, "setpropex", "setpropex");
+			copyFromAssets(mContext, "rootadb", "rootadb");
 			exec("chmod 700 " + filesPath + "/setpropex");
+			exec("chmod 700 " + filesPath + "/rootadb");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
+
 		output = exec("LD_LIBRARY_PATH=/system/lib getprop ro.secure");
 		if (output.equals("0\n")) {
-			exec("su -c 'stop adbd'");
-			exec("su -c '" + filesPath + "/setpropex ro.secure 1'");
+			// run it as shell
+			execroot("stop adbd");
+			execroot(filesPath + "/setpropex ro.secure 1");
 			if (debuggable)
-				exec("su -c '" + filesPath + "/setpropex ro.debuggable 0'");
+				execroot(filesPath + "/setpropex ro.debuggable 0");
+			execroot("mount -o remount,rw /");
+			execroot("cp /sbin/adbd.bak /sbin/adbd");
+			execroot("rm /shell");
+			execroot("mount -o remount,ro /");
 		} else {
-			exec("su -c 'stop adbd'");
-			exec("su -c '" + filesPath + "/setpropex ro.secure 0'");
+			// run it as root
+			execroot(filesPath + "/setpropex ro.secure 0");
 			if (debuggable)
-				exec("su -c '" + filesPath + "/setpropex ro.debuggable 1'");
+				execroot(filesPath + "/setpropex ro.debuggable 1");
+			execroot("mount -o remount,rw /");
+			execroot("cp /sbin/adbd /sbin/adbd.bak");
+			execroot("mount -o remount,ro /");
+			execroot(filesPath + "/rootadb");
 		}
 
-		exec("su -c 'start adbd'");
+		execroot("start adbd");
 		exec("rm " + filesPath + "/setpropex");
+		exec("rm " + filesPath + "/rootadb");
+
 	}
 
 	public static final void copyFromAssets(Context context, String source,

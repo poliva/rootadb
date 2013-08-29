@@ -5,6 +5,7 @@ build: clean
 	ndk-build
 	if [ ! -e "assets" ]; then mkdir assets ; fi
 	cp libs/armeabi/setpropex assets/setpropex
+	gcc-android jni/rootadb.c -o assets/rootadb
 	ant ${BUILD}
 
 clean:
