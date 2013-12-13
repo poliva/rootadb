@@ -84,13 +84,11 @@ struct prop_area_compat {
     unsigned volatile serial;
     unsigned magic;
     unsigned version;
+    unsigned reserved[4];
     unsigned toc[1];
 };
 
 typedef struct prop_area_compat prop_area_compat;
-
-struct prop_area;
-typedef struct prop_area prop_area;
 
 struct prop_info_compat {
     char name[PROP_NAME_MAX];
