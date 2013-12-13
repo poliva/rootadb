@@ -34,75 +34,75 @@
 #else
 #include <sys/system_properties.h>
 
-typedef struct prop_area prop_area;
-typedef struct prop_msg prop_msg;
+#include <stdbool.h>
+#include <sys/types.h>
 
+
+/*
+ * definitions for both versions
+ */
 #define PROP_AREA_MAGIC   0x504f5250
-#define PROP_AREA_VERSION 0x45434f76
+#define PROP_AREA_VERSION 0xfc6ed0ab
+#define PROP_AREA_VERSION_COMPAT 0x45434f76
 
-#define PROP_SERVICE_NAME "property_service"
+extern bool compat_mode;
 
-/* #define PROP_MAX_ENTRIES 247 */
-/* 247 -> 32620 bytes (<32768) */
+extern size_t pa_size;
+extern size_t pa_data_size;
 
-#define TOC_NAME_LEN(toc)       ((toc) >> 24)
-#define TOC_TO_INFO(area, toc)  ((prop_info*) (((char*) area) + ((toc) & 0xFFFFFF)))
+
+/*
+ * structures and definitions for >= kitkat
+ */
 
 struct prop_area {
+    unsigned bytes_used;
+    unsigned volatile serial;
+    unsigned magic;
+    unsigned version;
+    unsigned reserved[28];
+    char data[0];
+};
+
+typedef struct prop_area prop_area;
+
+struct prop_info {
+    unsigned volatile serial;
+    char value[PROP_VALUE_MAX];
+    char name[0];
+};
+
+typedef struct prop_info prop_info;
+
+
+/*
+ * structures and definitions for < kitkat
+ */
+
+struct prop_area_compat {
     unsigned volatile count;
     unsigned volatile serial;
     unsigned magic;
     unsigned version;
-    unsigned reserved[4];
     unsigned toc[1];
 };
 
-#define SERIAL_VALUE_LEN(serial) ((serial) >> 24)
-#define SERIAL_DIRTY(serial) ((serial) & 1)
+typedef struct prop_area_compat prop_area_compat;
 
-struct prop_info {
+struct prop_area;
+typedef struct prop_area prop_area;
+
+struct prop_info_compat {
     char name[PROP_NAME_MAX];
     unsigned volatile serial;
     char value[PROP_VALUE_MAX];
 };
 
-struct prop_msg 
-{
-    unsigned cmd;
-    char name[PROP_NAME_MAX];
-    char value[PROP_VALUE_MAX];
-};
+typedef struct prop_info_compat prop_info_compat;
 
-#define PROP_MSG_SETPROP 1
-    
-/*
-** Rules:
-**
-** - there is only one writer, but many readers
-** - prop_area.count will never decrease in value
-** - once allocated, a prop_info's name will not change
-** - once allocated, a prop_info's offset will not change
-** - reading a value requires the following steps
-**   1. serial = pi->serial
-**   2. if SERIAL_DIRTY(serial), wait*, then goto 1
-**   3. memcpy(local, pi->value, SERIAL_VALUE_LEN(serial) + 1)
-**   4. if pi->serial != serial, goto 2
-**
-** - writing a value requires the following steps
-**   1. pi->serial = pi->serial | 1
-**   2. memcpy(pi->value, local_value, value_len)
-**   3. pi->serial = (value_len << 24) | ((pi->serial + 1) & 0xffffff)
-**
-** Improvements:
-** - maintain the toc sorted by pi->name to allow lookup
-**   by binary search
-**
-*/
-
-#define PROP_PATH_RAMDISK_DEFAULT  "/default.prop"
-#define PROP_PATH_SYSTEM_BUILD     "/system/build.prop"
-#define PROP_PATH_SYSTEM_DEFAULT   "/system/default.prop"
-#define PROP_PATH_LOCAL_OVERRIDE   "/data/local.prop"
+const prop_info *__system_property_find_compat(const char *name);
 
 #endif
+
 #endif
+
