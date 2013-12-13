@@ -66,7 +66,7 @@ skip:
     strncpy(mi->perm, line + 18, 4);
 
     if(len < 50) {
-        LOGE("read_mapinfo: line too short! (%d bytes) skipping", len);
+        LOGD("read_mapinfo: line too short! (%d bytes) skipping", len);
         //mi->name[0] = '\0';
 	    goto skip;
     } else {
@@ -100,7 +100,7 @@ static mapinfo *search_maps(int pid, const char* perm, const char* name)
         }
     }
 
-    LOGE("search_maps: map \"%s\" not found!", name);
+    LOGD("search_maps: map \"%s\" not found!", name);
     fclose(fp);
     free(mi);
     return 0;
@@ -125,18 +125,54 @@ static void dump_region(int fd, unsigned start, unsigned end, char* mem)
     }
 }
 
-static void update_prop_info(prop_info *pi, const char *value, unsigned len)
+
+/* set it in init's memory */
+static void update_init(mapinfo *mi, void *pa, void *pi, size_t len)
 {
+    unsigned offset = (pi - pa);
+    unsigned *addr = (unsigned*)(mi->start + offset);
+    unsigned *data = (unsigned*)pi;
+    int ret;
+
+    LOGD("write %08x", mi->start + offset);
+    for (int i = 0;  i < len / 4; i++) {
+        ret = ptrace(PTRACE_POKEDATA, mi->pid, (void*)(addr + i), (void*)data[i]);
+        if (ret != 0) {
+            LOGE("ptrace POKEDATA: %s", strerror(errno));
+            break;
+        }
+    }
+}
+
+
+static void update_prop_info(mapinfo *mi, void *pa, prop_info *pi, const char *value, unsigned len)
+{
+    LOGD("new/before: pi=%p name=%s value=%s", pi, pi->name, pi->value);
     pi->serial = pi->serial | 1;
     memcpy(pi->value, value, len + 1);
     pi->serial = (len << 24) | ((pi->serial + 1) & 0xffffff);
+    LOGD("new/after: pi=%p name=%s value=%s", pi, pi->name, pi->value);
+
+    /* update init */
+    update_init(mi, pa, pi, sizeof(*pi));
+}
+
+static void update_prop_info_compat(mapinfo *mi, void *pa, prop_info_compat *pi, const char *value, unsigned len)
+{
+    LOGD("old/before: pi=%p name=%s value=%s", pi, pi->name, pi->value);
+    pi->serial = pi->serial | 1;
+    memcpy(pi->value, value, len + 1);
+    pi->serial = (len << 24) | ((pi->serial + 1) & 0xffffff);
+    LOGD("old/after: pi=%p name=%s value=%s", pi, pi->name, pi->value);
+
+    /* update init */
+    update_init(mi, pa, pi, sizeof(*pi));
 }
 
 /* first, set it in our memory, then in init'd memory */
 static int property_set_ex(const char *name, const char *value, int mem, mapinfo *mi)
 {
-    prop_area *pa;
-    prop_info *pi;
+    void *pi;
 
     int namelen = strlen(name);
     int valuelen = strlen(value);
@@ -154,36 +190,16 @@ static int property_set_ex(const char *name, const char *value, int mem, mapinfo
         return -1;
     }
 
-    pi = (prop_info*) __system_property_find(name);
+    pi = (void *)__system_property_find(name);
 
     if(pi != 0) {
-        LOGD("before: pi=%p name=%s value=%s", pi, pi->name, pi->value);
-        pa = __system_property_area__;
-        update_prop_info(pi, value, valuelen);
-        LOGD("after: pi=%p name=%s value=%s", pi, pi->name, pi->value);
-        LOGD("write %08x", mi->start + ((char*)pi - (char*)pa));
-#if 0
-        lseek64(mem, mi->start + ((char*)pi - (char*)pa), SEEK_SET);
-        int ret = write(mem, pi, sizeof(*pi));
-        LOGD("write ret=%d", ret);
-#else
-        /* set it in init's memory */
-        {
-            unsigned *addr = (unsigned*)(mi->start + ((char*)pi - (char*)pa));
-            unsigned *data = (unsigned*)pi;
-            int ret;
+        char *pa = (char *)__system_property_area__;
 
-            for(int i=0; i<sizeof(*pi)/4; i++){
-                ret = ptrace(PTRACE_POKEDATA, mi->pid, (void*)addr, (void*)*data);
-                if (ret != 0) {
-                    LOGE("ptrace POKEDATA: %s", strerror(errno));
-                    break;
-                }
-                addr++;
-                data++;
-            }
-        }
-#endif
+        if (compat_mode)
+            update_prop_info_compat(mi, pa, pi, value, valuelen);
+        else
+            update_prop_info(mi, pa, pi, value, valuelen);
+
         return 0;
     }
     else
