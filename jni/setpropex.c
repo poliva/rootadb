@@ -273,10 +273,7 @@ error2:
         return 0;
     }
 
-    if(property_set(argv[1], argv[2]))
-        return 1;
-
-    return 0;
+    return 1;
 }
 
 
