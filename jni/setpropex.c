@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include <cutils/properties.h>
 #include <jni.h>
+#include <inttypes.h>
 
 /* include the common system property implementation definitions */
 #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
@@ -31,15 +32,16 @@ typedef struct mapinfo mapinfo;
 struct mapinfo {
     mapinfo *next;
     int pid;
-    unsigned start;
-    unsigned end;
+    uintptr_t start;
+    uintptr_t end;
     char perm[8];
     char name[1024];
 };
 
 // 6f000000-6f01e000 rwxp 00000000 00:0c 16389419   /android/lib/libcomposer.so
-// 012345678901234567890123456789012345678901234567890123456789
-// 0         1         2         3         4         5
+// 7f8e960000-7f8e980000 rw-s 00000000 00:0e 2011                           /dev/__properties__
+// 01234567890123456789012345678901234567890123456789012345678901234567890123456789
+// 0         1         2         3         4         5         6         7
 
 static int read_mapinfo(FILE *fp, mapinfo* mi)
 {
@@ -61,16 +63,32 @@ skip:
         return -1;
     }
 
+    char* end = strchr(line, '-') + 1;
+    char* perm = strchr(line, ' ') + 1;
+    if ((end == NULL) || (perm == NULL)) {
+        LOGD("read_mapinfo: end/perm == NULL");
+        goto skip;
+    }
+
+#ifdef __LP64__
+    mi->start = strtoull(line, 0, 16);
+    mi->end = strtoull(end, 0, 16);
+#else
     mi->start = strtoul(line, 0, 16);
-    mi->end = strtoul(line + 9, 0, 16);
-    strncpy(mi->perm, line + 18, 4);
+    mi->end = strtoul(end, 0, 16);
+#endif
+    strncpy(mi->perm, perm, 4);
 
     if(len < 50) {
         LOGD("read_mapinfo: line too short! (%d bytes) skipping", len);
         //mi->name[0] = '\0';
-	    goto skip;
+        goto skip;
     } else {
+#ifdef __LP64__
+        strcpy(mi->name, line + 73);
+#else
         strcpy(mi->name, line + 49);
+#endif
     }
 
     return 0;
@@ -92,7 +110,7 @@ static mapinfo *search_maps(int pid, const char* perm, const char* name)
     mi = calloc(1, sizeof(mapinfo) + 16);
 
     while(!read_mapinfo(fp, mi)) {
-        //LOGD("%08x %s %s", mi->start, mi->perm, mi->name);
+        LOGD("search_maps: %"PRIxPTR" %s %s", mi->start, mi->perm, mi->name);
         if(!strcmp(mi->perm, perm) && !strcmp(mi->name, name)){
             fclose(fp);
             mi->pid = pid;
@@ -106,7 +124,7 @@ static mapinfo *search_maps(int pid, const char* perm, const char* name)
     return 0;
 }
 
-static void dump_region(int fd, unsigned start, unsigned end, char* mem)
+static void dump_region(int fd, uintptr_t start, uintptr_t end, char* mem)
 {
     lseek64(fd, start, SEEK_SET);
     while(start < end) {
@@ -129,12 +147,12 @@ static void dump_region(int fd, unsigned start, unsigned end, char* mem)
 /* set it in init's memory */
 static void update_init(mapinfo *mi, void *pa, void *pi, size_t len)
 {
-    unsigned offset = (pi - pa);
-    unsigned *addr = (unsigned*)(mi->start + offset);
-    unsigned *data = (unsigned*)pi;
+    uintptr_t offset = (pi - pa);
+    uintptr_t *addr = (uintptr_t*)(mi->start + offset);
+    uintptr_t *data = (uintptr_t*)pi;
     int ret;
 
-    LOGD("write %08x", mi->start + offset);
+    LOGD("write %"PRIxPTR, mi->start + offset);
     for (int i = 0;  i < len / 4; i++) {
         ret = ptrace(PTRACE_POKEDATA, mi->pid, (void*)(addr + i), (void*)data[i]);
         if (ret != 0) {
@@ -230,7 +248,7 @@ static int setpropex(int init_pid, int argc, char *argv[])
         LOGE("didn't find mapinfo!");
         return 1;
     }
-    LOGD("map found @ %08x %08x %s %s", mi->start, mi->end, mi->perm, mi->name);
+    LOGD("map found @ %"PRIxPTR" %"PRIxPTR" %s %s", mi->start, mi->end, mi->perm, mi->name);
 
     /* open it up, so we can read a copy */
     sprintf(tmp, "/proc/%d/mem", init_pid);
